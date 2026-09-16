@@ -1,0 +1,56 @@
+name: CSED103 CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux / ${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Install compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ clang
+      - name: Check tooling
+        run: |
+          uv run --locked ruff check tools/csed103
+          uv run --locked ruff format --check tools/csed103
+          uv run --locked python -m unittest discover -s tools/csed103/tests -v
+      - name: Run assignment tests
+        if: ${{ hashFiles('assign*/manifest.yaml') != '' }}
+        run: uv run --locked csed103 test --compiler ${{ matrix.compiler }}
+
+  windows-msvc:
+    name: Windows / Visual Studio 2022 MSVC
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Configure Visual Studio 2022
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Test tooling
+        run: uv run --locked python -m unittest discover -s tools/csed103/tests -v
+      - name: Run assignment tests
+        if: ${{ hashFiles('assign*/manifest.yaml') != '' }}
+        run: uv run --locked csed103 test --compiler msvc
