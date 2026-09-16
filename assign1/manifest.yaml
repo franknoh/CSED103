@@ -1,0 +1,23 @@
+name: assign1
+
+problems:
+  problem1:
+    sources:
+      - src/problem1.c
+    tests: tests/problem1
+
+  problem2:
+    sources:
+      - src/problem2.c
+    tests: tests/problem2
+
+ppy:
+  targets:
+    ppy/problem1.ppy: [src/problem1.c, src/problem1.cpp]
+    ppy/problem2.ppy: [src/problem2.c, src/problem2.cpp]
+
+submission:
+  archive_prefix: assn1
+  include:
+    - src/problem1.c
+    - src/problem2.c
