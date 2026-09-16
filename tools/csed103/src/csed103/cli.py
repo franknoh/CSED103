@@ -9,10 +9,12 @@ import sys
 from pathlib import Path
 
 from .build import build_report, build_submission
+from .ppy import build_ppy
 from .project import (
     assignments,
     clean_assignment,
     find_root,
+    load_yaml,
     resolve_assignment,
 )
 from .testing import test_assignment
@@ -46,7 +48,9 @@ def create_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
-    build = commands.add_parser("build", help="build reports or package submissions")
+    build = commands.add_parser(
+        "build", help="generate sources, build reports, or package submissions"
+    )
     targets = build.add_subparsers(dest="target", required=True)
     for name, help_text in (
         ("report", "build a PDF report"),
@@ -57,6 +61,14 @@ def create_parser() -> argparse.ArgumentParser:
         target.add_argument(
             "--pdf-engine", help="Pandoc PDF engine (default: PDF_ENGINE or xelatex)"
         )
+    ppy = targets.add_parser(
+        "ppy", help="emit the PPY targets declared in manifest.yaml"
+    )
+    ppy.add_argument(
+        "assignment",
+        nargs="?",
+        help="omit to process all assignments with PPY targets",
+    )
     all_builds = targets.add_parser(
         "all", help="test, build report, and package every assignment"
     )
@@ -85,7 +97,9 @@ def run_assignment(root: Path, assignment: Path, args: argparse.Namespace) -> in
     if args.command == "clean":
         clean_assignment(assignment)
         return 0
-    if args.target == "all":
+    if args.target == "ppy":
+        build_ppy(assignment)
+    elif args.target == "all":
         if test_assignment(assignment, compiler=args.compiler, timeout=args.timeout):
             return 1
         build_report(assignment, pdf_engine=args.pdf_engine)
@@ -106,6 +120,12 @@ def main(argv: list[str] | None = None) -> int:
             if args.assignment
             else assignments(root)
         )
+        if args.command == "build" and args.target == "ppy" and not args.assignment:
+            selected = [
+                path for path in selected if "ppy" in load_yaml(path / "manifest.yaml")
+            ]
+            if not selected:
+                raise RuntimeError("no assignments with PPY targets found")
         failed = False
         for assignment in selected:
             try:
