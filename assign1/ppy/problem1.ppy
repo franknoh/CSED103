@@ -1,0 +1,48 @@
+import ppy
+
+
+@ppy.pure
+@ppy.opt(3)
+def parking_fee(minutes: int) -> int:
+    if minutes <= 30:
+        return 0
+
+    chargeable_minutes: int = minutes - 30
+    units: int = (chargeable_minutes + 9) // 10
+    fee: int = units * 500
+
+    if fee > 5000:
+        fee = 5000
+
+    return fee
+
+
+def main() -> None:
+    print("===Parking Fee Calculator===")
+
+    print("Number of cars: ", end="", flush=True)
+    number_of_cars: int = ppy.input[int]()
+
+    total_fee: int = 0
+    free_cars: int = 0
+    car: int = 1
+
+    while car <= number_of_cars:
+        print(f"Car {car} parking time (minutes): ", end="", flush=True)
+        parking_time: int = ppy.input[int]()
+
+        fee: int = parking_fee(parking_time)
+
+        print(f"Car {car} fee: {fee} won")
+
+        total_fee += fee
+
+        if fee == 0:
+            free_cars += 1
+
+        car += 1
+
+    print(f"Total fee: {total_fee} won, Free cars: {free_cars}")
+
+
+main()
