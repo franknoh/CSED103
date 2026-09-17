@@ -5,8 +5,8 @@ Suho Noh (20250041), Electrical Engineering. HEMOS ID: `franknoh`.
 ## Environment
 
 VS Code 1.130.0, Ubuntu 24.04.5 on WSL2, and GCC 13.3.0 (C17).
-C/C++ sources are generated from `ppy/` with PPY 0.3.4 using
-`emit --standalone --unsafe`.
+C/C++ sources are generated from `ppy/` with PPY 0.3.5 using
+`emit --standalone --unsafe --int-width 32 --format`.
 
 ## Design
 
