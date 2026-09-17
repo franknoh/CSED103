@@ -42,15 +42,18 @@ class PPYBuildTests(unittest.TestCase):
     def emitter(self, command, **kwargs):
         if command[-1] == "--help":
             return subprocess.CompletedProcess(
-                command, 0, stdout="--standalone --unsafe"
+                command, 0, stdout="--standalone --unsafe --int-width --format"
             )
         self.assertEqual(command[:2], ["ppy", "emit"])
         self.assertIn(command[2], ("c", "cpp"))
         self.assertTrue(command[3].endswith(".ppy"))
-        self.assertEqual(command[4:7], ["--standalone", "--unsafe", "-o"])
+        self.assertEqual(
+            command[4:10],
+            ["--standalone", "--unsafe", "--int-width", "32", "--format", "-o"],
+        )
         self.assertTrue(kwargs["check"])
         self.assertEqual(kwargs["cwd"], self.assignment)
-        Path(command[7]).write_text(f"generated {command[2]}\n")
+        Path(command[10]).write_text(f"generated {command[2]}\n")
         return subprocess.CompletedProcess(command, 0)
 
     def assert_original_targets(self):
@@ -113,14 +116,20 @@ class PPYBuildTests(unittest.TestCase):
         self.assert_original_targets()
 
     def test_old_ppy_exits_without_touching_targets(self):
-        with patch(
-            "csed103.ppy.subprocess.run",
-            return_value=subprocess.CompletedProcess([], 0, stdout="--standalone"),
-        ) as run:
-            with self.assertRaisesRegex(RuntimeError, "does not support emit --unsafe"):
-                build_ppy(self.assignment)
-        self.assertEqual(run.call_count, 1)
-        self.assert_original_targets()
+        for supported_flags in ("--standalone", "--standalone --unsafe"):
+            with (
+                self.subTest(supported_flags=supported_flags),
+                patch(
+                    "csed103.ppy.subprocess.run",
+                    return_value=subprocess.CompletedProcess(
+                        [], 0, stdout=supported_flags
+                    ),
+                ) as run,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "upgrade to ppy 0.3.5"):
+                    build_ppy(self.assignment)
+            self.assertEqual(run.call_count, 1)
+            self.assert_original_targets()
 
     def test_failure_of_second_backend_preserves_first_target_too(self):
         def emit(command, **kwargs):

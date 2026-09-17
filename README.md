@@ -51,7 +51,8 @@ Omit `assign1` from `test`, `build all`, or `clean` to process all assignments;
 - `test`, `build all`: `--compiler auto|gcc|clang|msvc`, `--timeout SECONDS`.
 - PDF builds: `--pdf-engine ENGINE` (default: `PDF_ENGINE` or `xelatex`).
 - `build submission` reuses an existing PDF; `build all` rebuilds it.
-- `build ppy` uses `emit --standalone --unsafe` and requires PPY 0.3.4 or newer.
+- `build ppy` uses `emit --standalone --unsafe --int-width 32 --format`
+  with PPY 0.3.5 or newer; `uv sync` installs clang-format for formatting.
 
 Declare PPY inputs and outputs in each assignment's `manifest.yaml`:
 

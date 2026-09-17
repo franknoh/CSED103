@@ -69,10 +69,10 @@ def build_ppy(assignment: Path) -> list[Path]:
     )
     if help_result.returncode:
         raise RuntimeError("cannot run ppy emit; run uv sync in the repository")
-    if "--unsafe" not in help_result.stdout:
+    if any(flag not in help_result.stdout for flag in ("--unsafe", "--int-width")):
         raise RuntimeError(
-            "installed ppy does not support emit --unsafe; "
-            "upgrade to ppy 0.3.4 or newer using "
+            "installed ppy does not support emit --unsafe --int-width; "
+            "upgrade to ppy 0.3.5 or newer using "
             "uv sync --upgrade-package ppy-lang; existing targets were not changed"
         )
     # Stage every output first: an emitter failure must leave all existing sources intact.
@@ -93,6 +93,9 @@ def build_ppy(assignment: Path) -> list[Path]:
                     str(source),
                     "--standalone",
                     "--unsafe",
+                    "--int-width",
+                    "32",
+                    "--format",
                     "-o",
                     str(output),
                 ],
