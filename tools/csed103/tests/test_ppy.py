@@ -126,7 +126,7 @@ class PPYBuildTests(unittest.TestCase):
                     ),
                 ) as run,
             ):
-                with self.assertRaisesRegex(RuntimeError, "upgrade to ppy 0.3.5"):
+                with self.assertRaisesRegex(RuntimeError, "upgrade to ppy 0.3.6"):
                     build_ppy(self.assignment)
             self.assertEqual(run.call_count, 1)
             self.assert_original_targets()

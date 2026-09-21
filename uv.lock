@@ -55,7 +55,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "csed103-cli", editable = "tools/csed103" },
-    { name = "ppy-lang", extras = ["llvm"], specifier = ">=0.3.5" },
+    { name = "ppy-lang", extras = ["llvm"], specifier = ">=0.3.6" },
 ]
 
 [package.metadata.requires-dev]
@@ -186,16 +186,16 @@ wheels = [
 
 [[package]]
 name = "ppy-lang"
-version = "0.3.5"
+version = "0.3.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "libcst", version = "1.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "libcst", version = "1.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bc/81/718b7d29a6132110cc9001bb42e999bb93967a1996f2d486f838a03cdacd/ppy_lang-0.3.5.tar.gz", hash = "sha256:8f4a5379abdda9c0b52906073ef90d0acdf27091d8c83b6040db2d03a24c5461", size = 1119497, upload-time = "2026-09-16T06:59:20.061Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/f7/e43cd17c421400c953d83f91c671ce91e342bf0242633c244c8a88dcc455/ppy_lang-0.3.6.tar.gz", hash = "sha256:ed51433815b4e0f1ffe8913b7226bca2c284c81d6fc708347270c859caad649a", size = 1120386, upload-time = "2026-09-21T03:46:09.441Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/41/8f/ca3bbfc8b44b9d5ee298b70e3152cbc6a2dd807e0d792578510afa1e55e5/ppy_lang-0.3.5-py3-none-any.whl", hash = "sha256:5ca472aeba7de0b24fd5e83fefcbe573692a9f29b94d2fb793908db40828531b", size = 847466, upload-time = "2026-09-16T06:59:18.257Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/1b/d1be44358e77278cfdd8dc39b78493a37139441c42eabb8a51bd201dcf5a/ppy_lang-0.3.6-py3-none-any.whl", hash = "sha256:e2aa3cc1c3f5e233547c7b846df20172b5d16e6d403c155bd4a55271f03bcd21", size = 847418, upload-time = "2026-09-21T03:46:07.519Z" },
 ]
 
 [package.optional-dependencies]
