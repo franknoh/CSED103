@@ -17,9 +17,9 @@ static int parking_fee(int minutes) {
 }
 
 static int maximum_parking_time(int budget) {
-    int minute = 0;
     int maximum_time = 0;
-    while (minute <= 1440) {
+    int minute = 0;
+    while (minute < 1441) {
         int fee = parking_fee(minute);
         if (fee <= budget) {
             maximum_time = minute;
@@ -32,11 +32,8 @@ static int maximum_parking_time(int budget) {
 int main(void) {
     printf("===Maximum Parking Time===\n");
     printf("Budget (won): ");
-    fflush(stdout);
     int budget;
-    if (scanf("%d", &budget) != 1) {
-        return 1;
-    }
+    scanf("%d", &budget);
     int maximum_time;
     maximum_time = maximum_parking_time(budget);
     printf("Maximum parking time: %d minutes\n", maximum_time);

@@ -20,16 +20,12 @@ def parking_fee(minutes: int) -> int:
 @ppy.pure
 @ppy.opt(3)
 def maximum_parking_time(budget: int) -> int:
-    minute: int = 0
     maximum_time: int = 0
 
-    while minute <= 1440:
+    for minute in range(1441):
         fee: int = parking_fee(minute)
-
         if fee <= budget:
             maximum_time = minute
-
-        minute += 1
 
     return maximum_time
 
@@ -37,11 +33,10 @@ def maximum_parking_time(budget: int) -> int:
 def main() -> None:
     print("===Maximum Parking Time===")
 
-    print("Budget (won): ", end="", flush=True)
+    print("Budget (won): ", end="")
     budget: int = ppy.input[int]()
 
     maximum_time: int = maximum_parking_time(budget)
-
     print(f"Maximum parking time: {maximum_time} minutes")
 
 

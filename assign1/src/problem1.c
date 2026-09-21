@@ -19,21 +19,16 @@ static int parking_fee(int minutes) {
 int main(void) {
     printf("===Parking Fee Calculator===\n");
     printf("Number of cars: ");
-    fflush(stdout);
     int number_of_cars;
-    if (scanf("%d", &number_of_cars) != 1) {
-        return 1;
-    }
+    scanf("%d", &number_of_cars);
     int total_fee = 0;
     int free_cars = 0;
+    int t1 = number_of_cars + 1;
     int car = 1;
-    while (car <= number_of_cars) {
+    while (car < t1) {
         printf("Car %d parking time (minutes): ", car);
-        fflush(stdout);
         int parking_time;
-        if (scanf("%d", &parking_time) != 1) {
-            return 1;
-        }
+        scanf("%d", &parking_time);
         int fee = parking_fee(parking_time);
         printf("Car %d fee: %d won\n", car, fee);
         total_fee += fee;
