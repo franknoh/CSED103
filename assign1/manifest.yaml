@@ -13,8 +13,8 @@ problems:
 
 ppy:
   targets:
-    ppy/problem1.ppy: [src/problem1.c, src/problem1.cpp]
-    ppy/problem2.ppy: [src/problem2.c, src/problem2.cpp]
+    ppy/problem1.ppy: [src/problem1.c]
+    ppy/problem2.ppy: [src/problem2.c]
 
 submission:
   archive_prefix: assn1
