@@ -46,5 +46,7 @@ tools/csed103/   # Shared CLI and tests
 ```
 
 See each assignment's manifest for its configuration and required submission files.
-`examples` selects an input file and prompt pattern for each program; terminal
-images and transcripts are generated in `out/examples/`.
+`examples` uses `input` + `prompt` for line input, or `keys` + `prompt` + `exit_key`
+for key input (arrows: `up`, `down`, `left`, `right`). Each key waits for a new
+prompt; optional `capture` selects the last matching output before exit.
+Images and transcripts are generated in `out/examples/` on the target platform.
