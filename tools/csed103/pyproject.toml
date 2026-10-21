@@ -3,7 +3,13 @@ name = "csed103-cli"
 version = "0.1.0"
 description = "Build, test, and package CSED103 assignments"
 requires-python = ">=3.12"
-dependencies = ["pyyaml>=6.0.3"]
+dependencies = [
+    "pyyaml>=6.0.3",
+    "pillow>=11",
+    "pyte>=0.8",
+    "ptyprocess>=0.7; sys_platform != 'win32'",
+    "pywinpty>=3; sys_platform == 'win32'",
+]
 
 [project.scripts]
 csed103 = "csed103.cli:main"

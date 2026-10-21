@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .binaries import build_binaries
 from .build import build_report, build_submission
+from .examples import build_examples
 from .ppy import build_ppy
 from .project import (
     assignments,
@@ -77,6 +78,12 @@ def create_parser() -> argparse.ArgumentParser:
     binaries.add_argument(
         "--compiler", choices=("auto", "gcc", "clang", "msvc"), default="auto"
     )
+    examples = targets.add_parser(
+        "examples", help="run examples and render terminal captures"
+    )
+    examples.add_argument("assignment", nargs="?")
+    add_test_options(examples)
+    examples.set_defaults(timeout=10.0)
     all_builds = targets.add_parser(
         "all", help="test, build report, and package every assignment"
     )
@@ -87,6 +94,13 @@ def create_parser() -> argparse.ArgumentParser:
         "--pdf-engine", help="Pandoc PDF engine (default: PDF_ENGINE or xelatex)"
     )
     add_test_options(all_builds)
+    all_builds.add_argument(
+        "--example-timeout",
+        type=positive_timeout,
+        default=10.0,
+        metavar="SECONDS",
+        help="maximum time for each interactive example (default: 10)",
+    )
 
     test = commands.add_parser(
         "test", help="compile and test an assignment, or all assignments"
@@ -109,9 +123,12 @@ def run_assignment(root: Path, assignment: Path, args: argparse.Namespace) -> in
         build_ppy(assignment)
     elif args.target == "binaries":
         build_binaries(assignment, compiler=args.compiler)
+    elif args.target == "examples":
+        build_examples(assignment, compiler=args.compiler, timeout=args.timeout)
     elif args.target == "all":
         if test_assignment(assignment, compiler=args.compiler, timeout=args.timeout):
             return 1
+        build_examples(assignment, compiler=args.compiler, timeout=args.example_timeout)
         build_report(assignment, pdf_engine=args.pdf_engine)
         build_submission(root, assignment, pdf_engine=args.pdf_engine)
     elif args.target == "report":
