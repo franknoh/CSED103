@@ -73,6 +73,75 @@ class ExampleTests(unittest.TestCase):
         pyte.Stream(screen).feed("wrong\r\x1b[2KNumber: 21\r\n42\r\n")
         self.assertEqual(terminal_text(screen), "Number: 21\n42\n")
 
+    def test_invalid_key_configuration_fails_before_build(self):
+        for settings in (
+            {"keys": ["left"], "input": "sample.in", "exit_key": "q"},
+            {"keys": "left", "exit_key": "q"},
+            {"keys": ["unknown"], "exit_key": "q"},
+            {"keys": ["left"]},
+            {"keys": [], "exit_key": "q", "capture": "["},
+            {"keys": [], "exit_key": "q", "capture": ".*"},
+        ):
+            self.configure()
+            config = yaml.safe_load(self.manifest.read_text())
+            config["examples"]["sample"] = {"prompt": "Ready", **settings}
+            self.manifest.write_text(yaml.safe_dump(config))
+            with (
+                self.subTest(settings=settings),
+                patch("csed103.examples.build_binaries") as build,
+            ):
+                with self.assertRaises(RuntimeError):
+                    build_examples(self.assignment)
+                build.assert_not_called()
+
+    @unittest.skipUnless(
+        os.name != "nt" and shutil.which("gcc"), "Unix PTY integration"
+    )
+    def test_key_input_scroll_and_capture_before_quit(self):
+        source = self.root / "keys.c"
+        source.write_text(r"""
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+int main(void) {
+    struct termios old, raw;
+    tcgetattr(0, &old); raw = old;
+    raw.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(0, TCSANOW, &raw);
+    int frame = 0, key;
+    for (;;) {
+        printf("Frame %d\n", frame);
+        for (int i = 0; i < 20; ++i) puts("board row");
+        puts("Ready"); fflush(stdout);
+        key = getchar();
+        if (key == 'q') break;
+        if (key != 27 || getchar() != '[' || getchar() != 'D') return 2;
+        ++frame;
+    }
+    puts("QUIT");
+    tcsetattr(0, TCSANOW, &old);
+    return 0;
+}
+""")
+        executable = self.root / "keys"
+        subprocess.run(["gcc", str(source), "-o", str(executable)], check=True)
+        raw, text = capture_terminal(
+            executable,
+            ["left"] * 6,
+            "Ready",
+            3,
+            exit_key="q",
+            capture=r"Frame \d+\n(?:board row\n){20}Ready",
+        )
+        self.assertIn("QUIT", raw)
+        self.assertEqual(text, "Frame 6\n" + "board row\n" * 20 + "Ready\n")
+        with self.assertRaisesRegex(RuntimeError, "capture pattern"):
+            capture_terminal(
+                executable, [], "Ready", 2, exit_key="q", capture="missing"
+            )
+        with self.assertRaisesRegex(RuntimeError, "final capture prompt"):
+            capture_terminal(executable, ["q"], "Ready", 2, exit_key="q")
+
     def test_png_is_sized_for_long_output(self):
         output = self.root / "terminal.png"
         render_terminal("x" * 90 + "\n" + "line\n" * 20, "sample.exe", output)

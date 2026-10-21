@@ -1,4 +1,4 @@
-"""Run line-input examples in a real PTY and render their terminal output."""
+"""Run line-input and key-driven examples in a real PTY and render their output."""
 
 from __future__ import annotations
 
@@ -23,10 +23,47 @@ def terminal_text(screen: pyte.Screen) -> str:
     return "\n".join(line.rstrip() for line in screen.display).rstrip() + "\n"
 
 
+def key_input(key: str) -> str:
+    """Encode named terminal keys; printable single characters pass through."""
+    special = {
+        "up": "\x1b[A",
+        "down": "\x1b[B",
+        "right": "\x1b[C",
+        "left": "\x1b[D",
+        "enter": "\r",
+        "escape": "\x1b",
+        "space": " ",
+    }
+    if isinstance(key, str):
+        if key in special:
+            return special[key]
+        if len(key) == 1 and key.isprintable():
+            return key
+    raise RuntimeError(f"invalid example key: {key!r}")
+
+
+def terminal_history(screen: pyte.HistoryScreen) -> str:
+    lines = [
+        "".join(line[column].data for column in range(screen.columns))
+        for line in screen.history.top
+    ]
+    return "\n".join(lines + screen.display)
+
+
 def capture_terminal(
-    executable: Path, inputs: list[str], prompt: str, timeout: float
+    executable: Path,
+    inputs: list[str],
+    prompt: str,
+    timeout: float,
+    *,
+    exit_key: str | None = None,
+    capture: str | None = None,
 ) -> tuple[str, str]:
-    """Capture a finite, line-oriented example, including the terminal's input echo."""
+    """Wait for prompts; capture key-driven output before sending its exit key.
+
+    With exit_key, inputs are terminal keys sent without Enter. Otherwise inputs
+    are lines and the program must exit after consuming them.
+    """
     if not math.isfinite(timeout) or timeout <= 0:
         raise RuntimeError("example timeout must be finite and positive")
     expression = re.compile(prompt)
@@ -37,7 +74,7 @@ def capture_terminal(
     else:
         from ptyprocess import PtyProcessUnicode as PtyProcess
 
-    screen = pyte.Screen(100, 80)
+    screen = pyte.HistoryScreen(100, 80, history=12000)
     stream = pyte.Stream(screen)
     process = PtyProcess.spawn(
         [str(executable)], cwd=str(executable.parent), dimensions=(80, 100)
@@ -46,16 +83,17 @@ def capture_terminal(
     raw = ""
     sent = 0
     search_from = 0
+    snapshot = None
     try:
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise RuntimeError(
-                    f"example timed out after {timeout:g}s (sent {sent}/{len(inputs)} input lines)"
+                    f"example timed out after {timeout:g}s (sent {sent}/{len(inputs)} inputs)"
                 )
             if not select.select([process.fd], [], [], remaining)[0]:
                 raise RuntimeError(
-                    f"example timed out waiting for output (sent {sent}/{len(inputs)} input lines)"
+                    f"example timed out waiting for output (sent {sent}/{len(inputs)} inputs)"
                 )
             try:
                 chunk = process.read(4096)
@@ -65,13 +103,34 @@ def capture_terminal(
             if len(raw) > 1_000_000:
                 raise RuntimeError("example terminal output exceeds 1 MB")
             stream.feed(chunk)
-            if sent < len(inputs):
-                visible = "\n".join(screen.display)
+            if sent < len(inputs) or (exit_key is not None and snapshot is None):
+                visible = terminal_history(screen)
                 match = expression.search(visible, search_from)
                 if match:
                     search_from = match.end()
-                    process.write(inputs[sent] + ("\r\n" if os.name == "nt" else "\n"))
-                    sent += 1
+                    if sent < len(inputs):
+                        value = (
+                            key_input(inputs[sent])
+                            if exit_key is not None
+                            else (inputs[sent] + ("\r\n" if os.name == "nt" else "\n"))
+                        )
+                        process.write(value)
+                        sent += 1
+                    else:
+                        snapshot = (
+                            "\n".join(
+                                line.rstrip() for line in visible.splitlines()
+                            ).rstrip()
+                            + "\n"
+                        )
+                        if capture is not None:
+                            frames = list(re.finditer(capture, snapshot))
+                            if not frames:
+                                raise RuntimeError(
+                                    "example capture pattern did not match output"
+                                )
+                            snapshot = frames[-1].group().rstrip() + "\n"
+                        process.write(key_input(exit_key))
         # Reap the process before reading exitstatus (required by Unix PTYs).
         if os.name != "nt":
             process.isalive()
@@ -81,7 +140,15 @@ def capture_terminal(
             )
         if process.exitstatus != 0:
             raise RuntimeError(f"example failed with exit code {process.exitstatus}")
-        return raw, terminal_text(screen)
+        if exit_key is not None and snapshot is None:
+            raise RuntimeError("example exited before the final capture prompt")
+        text = (
+            "\n".join(
+                line.rstrip() for line in terminal_history(screen).splitlines()
+            ).rstrip()
+            + "\n"
+        )
+        return raw, snapshot if snapshot is not None else text
     finally:
         process.close(force=True)
 
@@ -173,8 +240,37 @@ def build_examples(
             raise RuntimeError(f"{name}: example must name an executable problem")
         if not supported_platform(target):
             raise RuntimeError(f"{name}: example is not supported on this platform")
-        source = local_file(assignment, config.get("input"))
-        inputs = source.read_text(encoding="utf-8").splitlines()
+        options = {}
+        if "keys" in config:
+            if "input" in config:
+                raise RuntimeError(f"{name}: use either input or keys")
+            inputs = config["keys"]
+            if not isinstance(inputs, list):
+                raise RuntimeError(f"{name}: keys must be a list")
+            for key in inputs:
+                key_input(key)
+            key_input(config.get("exit_key"))
+            options["exit_key"] = config["exit_key"]
+            if "capture" in config:
+                capture = config["capture"]
+                if not isinstance(capture, str) or not capture:
+                    raise RuntimeError(
+                        f"{name}: capture must be a non-empty regular expression"
+                    )
+                try:
+                    expression = re.compile(capture)
+                except re.error as exc:
+                    raise RuntimeError(
+                        f"{name}: invalid capture expression: {exc}"
+                    ) from exc
+                if expression.search(""):
+                    raise RuntimeError(f"{name}: capture must not match empty text")
+                options["capture"] = capture
+        else:
+            if "exit_key" in config or "capture" in config:
+                raise RuntimeError(f"{name}: exit_key and capture require keys")
+            source = local_file(assignment, config.get("input"))
+            inputs = source.read_text(encoding="utf-8").splitlines()
         prompt = config.get("prompt")
         if not isinstance(prompt, str) or not prompt:
             raise RuntimeError(f"{name}: prompt must be a non-empty regular expression")
@@ -184,7 +280,7 @@ def build_examples(
             raise RuntimeError(f"{name}: invalid prompt expression: {exc}") from exc
         if expression.search(""):
             raise RuntimeError(f"{name}: prompt must not match empty text")
-        prepared.append((name, problem, inputs, prompt))
+        prepared.append((name, problem, inputs, prompt, options))
     binaries = build_binaries(assignment, compiler=compiler)
     out = output_dir(assignment)
     directory = out / "examples"
@@ -197,8 +293,10 @@ def build_examples(
         prefix=".examples-", dir=build_output_dir(assignment)
     ) as temporary:
         staged = Path(temporary)
-        for name, problem, inputs, prompt in prepared:
-            raw, text = capture_terminal(binaries[problem], inputs, prompt, timeout)
+        for name, problem, inputs, prompt, options in prepared:
+            raw, text = capture_terminal(
+                binaries[problem], inputs, prompt, timeout, **options
+            )
             (staged / f"{name}.ansi").write_text(raw, encoding="utf-8", newline="")
             (staged / f"{name}.txt").write_text(text, encoding="utf-8")
             render_terminal(
