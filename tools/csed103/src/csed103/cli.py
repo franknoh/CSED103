@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .binaries import build_binaries
 from .build import build_report, build_submission
 from .ppy import build_ppy
 from .project import (
@@ -69,6 +70,13 @@ def create_parser() -> argparse.ArgumentParser:
         nargs="?",
         help="omit to process all assignments with PPY targets",
     )
+    binaries = targets.add_parser(
+        "binaries", help="build executables and shared libraries"
+    )
+    binaries.add_argument("assignment", nargs="?")
+    binaries.add_argument(
+        "--compiler", choices=("auto", "gcc", "clang", "msvc"), default="auto"
+    )
     all_builds = targets.add_parser(
         "all", help="test, build report, and package every assignment"
     )
@@ -99,6 +107,8 @@ def run_assignment(root: Path, assignment: Path, args: argparse.Namespace) -> in
         return 0
     if args.target == "ppy":
         build_ppy(assignment)
+    elif args.target == "binaries":
+        build_binaries(assignment, compiler=args.compiler)
     elif args.target == "all":
         if test_assignment(assignment, compiler=args.compiler, timeout=args.timeout):
             return 1

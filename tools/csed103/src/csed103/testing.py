@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from .binaries import supported_platform
 from .compilers import Toolchain, compile_problem, detect_toolchain
 from .project import load_yaml
 
@@ -155,7 +156,7 @@ def test_assignment(
     assignment: Path, *, compiler: Toolchain = "auto", timeout: float = 2.0
 ) -> int:
     manifest = load_yaml(assignment / "manifest.yaml")
-    toolchain = detect_toolchain(compiler)
+    toolchain = detect_toolchain(compiler, project_dir=assignment)
     problems = manifest.get("problems")
 
     if not isinstance(problems, dict) or not problems:
@@ -175,6 +176,13 @@ def test_assignment(
             if not isinstance(config, dict):
                 print(f"[ERROR] {problem}: configuration must be a mapping")
                 compile_failures += 1
+                continue
+
+            if not supported_platform(config) or config.get("test") is False:
+                print(f"[SKIP] {problem}: build-only target or unsupported platform")
+                continue
+            if config.get("kind", "executable") != "executable":
+                print(f"[SKIP] {problem}: shared library (use a test driver)")
                 continue
 
             executable = executable_path(

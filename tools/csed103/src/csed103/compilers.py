@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from .msvc import environment_path, msvc_environment
+from .project import find_root, load_yaml
+
 Toolchain = Literal["auto", "gcc", "clang", "msvc"]
 
 C_EXTENSIONS = {".c"}
@@ -22,14 +25,38 @@ class Compiler:
     executable: str
     style: Literal["unix", "msvc"]
     language: Literal["c", "cxx"]
+    environment: dict[str, str] | None = None
 
 
-def detect_toolchain(requested: Toolchain) -> Toolchain:
+def configured_msvc_environment(project_dir: Path | None = None) -> dict[str, str]:
+    try:
+        root = find_root(project_dir)
+    except RuntimeError:
+        settings = {}
+    else:
+        config = root / "config.yaml"
+        settings = load_yaml(config).get("msvc", {}) if config.exists() else {}
+    if not isinstance(settings, dict):
+        raise RuntimeError("config.yaml msvc must be a mapping")
+    toolset = settings.get("toolset")
+    if toolset is not None and not isinstance(toolset, str):
+        raise RuntimeError("msvc.toolset must be a quoted version string")
+    return msvc_environment(toolset)
+
+
+def detect_toolchain(
+    requested: Toolchain, *, project_dir: Path | None = None
+) -> Toolchain:
     if requested != "auto":
         return requested
 
-    if os.name == "nt" and shutil.which("cl"):
-        return "msvc"
+    if os.name == "nt":
+        try:
+            configured_msvc_environment(project_dir)
+        except RuntimeError:
+            pass
+        else:
+            return "msvc"
 
     if shutil.which("gcc") and shutil.which("g++"):
         return "gcc"
@@ -43,6 +70,8 @@ def detect_toolchain(requested: Toolchain) -> Toolchain:
 def get_compiler(
     toolchain: Toolchain,
     language: Literal["c", "cxx"],
+    *,
+    project_dir: Path | None = None,
 ) -> Compiler:
     if toolchain == "gcc":
         name = "gcc" if language == "c" else "g++"
@@ -65,12 +94,13 @@ def get_compiler(
         return Compiler(executable, "unix", language)
 
     if toolchain == "msvc":
-        executable = shutil.which("cl")
+        environment = configured_msvc_environment(project_dir)
+        executable = shutil.which("cl", path=environment_path(environment))
 
         if executable is None:
             raise RuntimeError("compiler not found: cl.exe")
 
-        return Compiler(executable, "msvc", language)
+        return Compiler(executable, "msvc", language, environment)
 
     raise RuntimeError(f"unsupported toolchain: {toolchain}")
 
@@ -109,6 +139,7 @@ def msvc_compile_flags(
         "/W4",
         "/O2",
         "/D_CRT_SECURE_NO_WARNINGS",
+        "/utf-8",
     ]
 
     if language == "c":
@@ -133,9 +164,11 @@ def compile_object(
     include_dirs: list[Path],
     defines: list[str],
     extra_flags: list[str],
+    *,
+    project_dir: Path | None = None,
 ) -> tuple[bool, str]:
     language = source_language(source)
-    compiler = get_compiler(toolchain, language)
+    compiler = get_compiler(toolchain, language, project_dir=project_dir)
 
     if compiler.style == "msvc":
         command = [
@@ -174,6 +207,8 @@ def compile_object(
 
     proc = subprocess.run(
         command,
+        cwd=output.parent,
+        env=compiler.environment,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -193,12 +228,15 @@ def link_objects(
     toolchain: Toolchain,
     use_cxx: bool,
     extra_flags: list[str],
+    *,
+    project_dir: Path | None = None,
 ) -> tuple[bool, str]:
     language: Literal["c", "cxx"] = "cxx" if use_cxx else "c"
 
     compiler = get_compiler(
         toolchain,
         language,
+        project_dir=project_dir,
     )
 
     if compiler.style == "msvc":
@@ -228,6 +266,8 @@ def link_objects(
 
     proc = subprocess.run(
         command,
+        cwd=output.parent,
+        env=compiler.environment,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -302,6 +342,31 @@ def compile_problem(
     ):
         raise RuntimeError(f"{problem}: defines/flags must be lists")
 
+    kind = config.get("kind", "executable")
+    if kind not in {"executable", "shared"}:
+        raise RuntimeError(f"{problem}: kind must be executable or shared")
+    strict = config.get("warnings_as_errors", False)
+    if not isinstance(strict, bool):
+        raise RuntimeError(f"{problem}: warnings_as_errors must be a boolean")
+    if strict:
+        compile_flags = [*compile_flags, "/WX" if toolchain == "msvc" else "-Werror"]
+    exports = config.get("exports", [])
+    if not isinstance(exports, list) or any(
+        not isinstance(symbol, str) or not symbol.isidentifier() for symbol in exports
+    ):
+        raise RuntimeError(f"{problem}: exports must be a list of C identifiers")
+    if kind == "shared":
+        if toolchain == "msvc":
+            link_flags = [
+                *link_flags,
+                "/LD",
+                "/link",
+                *[f"/EXPORT:{s}" for s in exports],
+            ]
+        else:
+            compile_flags = [*compile_flags, "-fPIC"]
+            link_flags = [*link_flags, "-shared"]
+
     objects: list[Path] = []
 
     use_cxx = False
@@ -324,6 +389,7 @@ def compile_problem(
             include_dirs=include_dirs,
             defines=[str(x) for x in defines],
             extra_flags=[str(x) for x in compile_flags],
+            project_dir=assignment,
         )
 
         if output_text.strip():
@@ -340,6 +406,7 @@ def compile_problem(
         toolchain=toolchain,
         use_cxx=use_cxx,
         extra_flags=[str(x) for x in link_flags],
+        project_dir=assignment,
     )
 
     if output_text.strip():
