@@ -18,6 +18,14 @@ ppy:
     ppy/problem1.ppy: [src/problem1.c]
     ppy/problem2.ppy: [src/problem2.c]
 
+examples:
+  problem1:
+    input: tests/problem1/sample.in
+    prompt: 'Number of cars: |Car [0-9]+ parking time \(minutes\): '
+  problem2:
+    input: tests/problem2/budget_0750.in
+    prompt: 'Budget \(won\): '
+
 submission:
   archive_prefix: assn1
   include:
