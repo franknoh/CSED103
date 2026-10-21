@@ -5,7 +5,7 @@ description = "CSED103 coursework"
 requires-python = ">=3.12"
 dependencies = [
     "csed103-cli",
-    "ppy-lang[llvm]>=0.3.6",
+    "ppy-lang[llvm]>=0.7.0",
 ]
 
 [tool.uv.workspace]
