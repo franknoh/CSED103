@@ -19,7 +19,8 @@ MSVC is initialized automatically on Windows.
 uv run csed103 build ppy assign1       # Generate C from PPY
 uv run csed103 build binaries assign1 # Build programs
 uv run csed103 test assign1           # Run tests
-uv run csed103 build all assign1      # Test, build report, package ZIP
+uv run csed103 build examples assign1 # Generate terminal captures from examples
+uv run csed103 build all assign1      # Test, capture examples, report, ZIP
 uv run csed103 clean assign1          # Remove generated outputs
 uv run csed103 --help
 ```
@@ -39,7 +40,11 @@ assign*/
   src/            # C/C++ sources
   tests/          # Test cases and drivers
   out/            # Generated files; only report.pdf is tracked
+    build/        # Binaries, libraries, build logs, and temporary objects
+    examples/     # Terminal captures and transcripts
 tools/csed103/   # Shared CLI and tests
 ```
 
 See each assignment's manifest for its configuration and required submission files.
+`examples` selects an input file and prompt pattern for each program; terminal
+images and transcripts are generated in `out/examples/`.
