@@ -72,3 +72,14 @@ def clean_assignment(assignment: Path) -> None:
     if path.exists():
         shutil.rmtree(path)
     print(f"[clean] {path}")
+
+
+def build_output_dir(assignment: Path) -> Path:
+    out = output_dir(assignment)
+    path = out / "build"
+    if path.is_symlink() or path.resolve().parent != out.resolve():
+        raise RuntimeError(
+            f"build directory must stay inside the output directory: {path}"
+        )
+    path.mkdir(parents=True, exist_ok=True)
+    return path

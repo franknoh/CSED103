@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from .compilers import Toolchain, compile_problem, detect_toolchain
-from .project import load_yaml, output_dir
+from .project import build_output_dir, load_yaml
 
 
 def supported_platform(config: dict) -> bool:
@@ -51,11 +51,10 @@ def build_binaries(
     if not isinstance(problems, dict) or not problems:
         raise RuntimeError("manifest must contain a non-empty problems mapping")
     toolchain = detect_toolchain(compiler, project_dir=assignment)
-    out = output_dir(assignment)
-    out.mkdir(exist_ok=True)
+    out = build_output_dir(assignment)
     built = {}
     logs = []
-    with tempfile.TemporaryDirectory(prefix="csed103-objects-") as temporary:
+    with tempfile.TemporaryDirectory(prefix=".objects-", dir=out) as temporary:
         for name, config in problems.items():
             if not isinstance(config, dict):
                 raise RuntimeError(f"{name}: configuration must be a mapping")
@@ -72,6 +71,6 @@ def build_binaries(
             )
             if not ok:
                 raise RuntimeError(f"{name}: compilation failed\n{log}")
-            print(f"[build] {name}: {target.name} ({toolchain})")
+            print(f"[build] {name}: {target.relative_to(assignment)} ({toolchain})")
             built[name] = target
     return built

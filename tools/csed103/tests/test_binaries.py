@@ -80,7 +80,9 @@ class BinaryTests(unittest.TestCase):
             lib.triple.argtypes = [ctypes.c_int]
             lib.triple.restype = ctypes.c_int
             self.assertEqual(lib.triple(7), 21)
-            self.assertTrue((root / "out/compiler-build-log.txt").is_file())
+            self.assertEqual(result["sample"].parent, root / "out/build")
+            self.assertTrue((root / "out/build/compiler-build-log.txt").is_file())
+            self.assertEqual({p.name for p in (root / "out").iterdir()}, {"build"})
 
 
 if __name__ == "__main__":

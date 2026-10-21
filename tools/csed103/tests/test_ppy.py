@@ -62,7 +62,7 @@ class PPYBuildTests(unittest.TestCase):
                 (self.assignment / f"src/problem.{suffix}").read_text(),
                 f"original {suffix}\n",
             )
-        self.assertFalse(list(self.assignment.glob(".ppy-*")))
+        self.assertFalse(list(self.assignment.rglob(".ppy-*")))
 
     def test_cli_generates_both_declared_backends(self):
         with patch("csed103.ppy.subprocess.run", side_effect=self.emitter) as run:
@@ -74,7 +74,7 @@ class PPYBuildTests(unittest.TestCase):
                 (self.assignment / f"src/problem.{suffix}").read_text(),
                 f"generated {suffix}\n",
             )
-        self.assertFalse(list(self.assignment.glob(".ppy-*")))
+        self.assertFalse(list(self.assignment.rglob(".ppy-*")))
 
     def test_only_declared_targets_are_generated(self):
         self.write_targets({"ppy/problem.ppy": ["src/problem.c"]})

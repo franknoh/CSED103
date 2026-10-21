@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from .project import load_yaml, output_dir
+from .project import build_output_dir, load_yaml, output_dir
 
 
 def local_file(assignment: Path, value: object) -> Path:
@@ -66,7 +66,9 @@ def render_report(
     out.mkdir(parents=True, exist_ok=True)
     report = out / name
     print(f"[report] {assignment.name}/{name} (engine: {engine})", flush=True)
-    with tempfile.TemporaryDirectory(prefix=".report-", dir=out) as tmp:
+    with tempfile.TemporaryDirectory(
+        prefix=".report-", dir=build_output_dir(assignment)
+    ) as tmp:
         temporary = Path(tmp) / "report.pdf"
         subprocess.run(
             [
@@ -179,7 +181,9 @@ def build_submission(
     if "files" not in load_yaml(assignment / "manifest.yaml")["submission"]:
         files["report.pdf"] = out / "report.pdf"
     archive = out / name
-    with tempfile.TemporaryDirectory(prefix=".submission-", dir=out) as tmp:
+    with tempfile.TemporaryDirectory(
+        prefix=".submission-", dir=build_output_dir(assignment)
+    ) as tmp:
         temporary = Path(tmp) / name
         with ZipFile(temporary, "w", compression=ZIP_DEFLATED) as zipped:
             for basename, path in sorted(files.items()):

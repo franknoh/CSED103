@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .binaries import supported_platform
 from .compilers import Toolchain, compile_problem, detect_toolchain
-from .project import load_yaml
+from .project import build_output_dir, load_yaml
 
 
 @dataclass
@@ -169,7 +169,9 @@ def test_assignment(
     print(f"Toolchain  : {toolchain}")
     print()
 
-    with tempfile.TemporaryDirectory(prefix="csed103-") as tmp:
+    with tempfile.TemporaryDirectory(
+        prefix=".tests-", dir=build_output_dir(assignment)
+    ) as tmp:
         build_dir = Path(tmp)
 
         for problem, config in problems.items():

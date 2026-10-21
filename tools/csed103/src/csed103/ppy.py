@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from .project import load_yaml
+from .project import build_output_dir, load_yaml
 
 
 def declared_path(assignment: Path, value: object, suffixes: set[str]) -> Path:
@@ -116,7 +116,9 @@ def build_ppy(assignment: Path) -> list[Path]:
             "uv sync --upgrade-package ppy-lang; existing targets were not changed"
         )
     # Stage every output first: an emitter failure must leave all existing sources intact.
-    with tempfile.TemporaryDirectory(prefix=".ppy-", dir=assignment) as tmp:
+    with tempfile.TemporaryDirectory(
+        prefix=".ppy-", dir=build_output_dir(assignment)
+    ) as tmp:
         staged = []
         for source, target in pairs:
             output = Path(tmp) / target.relative_to(assignment)

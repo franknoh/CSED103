@@ -179,7 +179,7 @@ class ToolingTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 build_submission(self.root, self.assignment)
         self.assertEqual(archive.read_bytes(), before)
-        self.assertFalse(list(self.out.glob(".submission-*")))
+        self.assertFalse(list(self.out.rglob(".submission-*")))
 
     def test_report_arguments_and_atomic_replacement(self):
         def render(command, **kwargs):
@@ -200,7 +200,7 @@ class ToolingTests(unittest.TestCase):
                 build_report(self.assignment, pdf_engine="lualatex"), self.report
             )
         self.assertEqual(self.report.read_bytes(), b"new report")
-        self.assertFalse(list(self.out.glob(".report-*")))
+        self.assertFalse(list(self.out.rglob(".report-*")))
 
     def test_empty_report_source_has_clear_error(self):
         (self.assignment / "README.md").write_text("   ")
@@ -220,7 +220,7 @@ class ToolingTests(unittest.TestCase):
         ):
             self.assertEqual(self.cli("build", "report", "assign1"), 1)
         self.assertEqual(self.report.read_bytes(), b"existing report")
-        self.assertFalse(list(self.out.glob(".report-*")))
+        self.assertFalse(list(self.out.rglob(".report-*")))
 
     def test_build_all_skips_failed_assignment_and_continues(self):
         second = self.root / "assign2"
