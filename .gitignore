@@ -1,14 +1,29 @@
 *.zip
+!/assign*/assets/*.zip
 
 *.o
 *.obj
 *.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.exp
+*.pdb
+*.ilk
+
+# Keep only the final report from assignment outputs.
+/assign*/out/*
+!/assign*/out/report.pdf
+# Interrupted atomic source/report builds.
+/assign*/.ppy-*/
 
 __pycache__/
 *.pyc
 
 .vscode/
 .idea/
+.vs/
 
 .DS_Store
 Thumbs.db
@@ -18,3 +33,4 @@ Thumbs.db
 dist/
 *.egg-info/
 .ppy-cache/
+*Zone.Identifier
