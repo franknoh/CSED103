@@ -193,6 +193,87 @@ class PPYBuildTests(unittest.TestCase):
                 build_ppy(self.assignment)
         self.assert_original_targets()
 
+    def test_library_uses_public_emitter_and_appends_adapter_verbatim(self):
+        adapter = self.assignment / "src/adapter.c"
+        adapter.write_text("/* C ABI */\nvoid public_entry(void) {}\n")
+        (self.assignment / "manifest.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "ppy": {
+                        "mode": "library",
+                        "targets": {"ppy/problem.ppy": ["src/problem.c"]},
+                        "append": {"src/problem.c": ["src/adapter.c"]},
+                    }
+                }
+            )
+        )
+
+        def emit(command, **kwargs):
+            if command[-1] == "--help":
+                return subprocess.CompletedProcess(
+                    command, 0, stdout="--unsafe --format"
+                )
+            self.assertEqual(command[4:7], ["--unsafe", "--format", "-o"])
+            self.assertNotIn("--standalone", command)
+            self.assertNotIn("--int-width", command)
+            Path(command[-1]).write_text("/* actual emitted code */\n")
+            return subprocess.CompletedProcess(command, 0)
+
+        with patch("csed103.ppy.subprocess.run", side_effect=emit):
+            build_ppy(self.assignment)
+        self.assertEqual(
+            (self.assignment / "src/problem.c").read_text(),
+            "/* actual emitted code */\n\n" + adapter.read_text() + "\n",
+        )
+        self.assertEqual(
+            (self.assignment / "src/problem.cpp").read_text(), "original cpp\n"
+        )
+
+    def test_invalid_adapters_fail_before_running_emitter(self):
+        for append in (
+            ["adapter.c"],
+            {"src/unknown.c": ["src/problem.c"]},
+            {"src/problem.c": ["../outside.c"]},
+            {"src/problem.c": ["src/problem.cpp"]},
+            {"src/problem.c": ["src/missing.c"]},
+        ):
+            with self.subTest(append=append):
+                config = yaml.safe_load((self.assignment / "manifest.yaml").read_text())
+                config["ppy"]["append"] = append
+                (self.assignment / "manifest.yaml").write_text(yaml.safe_dump(config))
+                with patch("csed103.ppy.subprocess.run") as run:
+                    with self.assertRaises(RuntimeError):
+                        build_ppy(self.assignment)
+                    run.assert_not_called()
+                self.assert_original_targets()
+
+    def test_declared_macros_precede_headers_and_survive_regeneration(self):
+        manifest = self.assignment / "manifest.yaml"
+        config = yaml.safe_load(manifest.read_text())
+        config["ppy"]["defines"] = ["_CRT_SECURE_NO_WARNINGS"]
+        manifest.write_text(yaml.safe_dump(config))
+        with patch("csed103.ppy.subprocess.run", side_effect=self.emitter):
+            build_ppy(self.assignment)
+            first = (self.assignment / "src/problem.c").read_text()
+            build_ppy(self.assignment)
+        self.assertTrue(
+            first.startswith(
+                "#ifndef _CRT_SECURE_NO_WARNINGS\n#define _CRT_SECURE_NO_WARNINGS\n#endif\n"
+            )
+        )
+        self.assertEqual(first, (self.assignment / "src/problem.c").read_text())
+
+    def test_invalid_macro_fails_before_running_emitter(self):
+        manifest = self.assignment / "manifest.yaml"
+        config = yaml.safe_load(manifest.read_text())
+        config["ppy"]["defines"] = ["BAD\n#include <bad.h>"]
+        manifest.write_text(yaml.safe_dump(config))
+        with patch("csed103.ppy.subprocess.run") as run:
+            with self.assertRaisesRegex(RuntimeError, "macro identifiers"):
+                build_ppy(self.assignment)
+            run.assert_not_called()
+        self.assert_original_targets()
+
     def test_all_assignments_uses_manifest_instead_of_ppy_directory(self):
         other = self.root / "assign2"
         (other / "ppy").mkdir(parents=True)
