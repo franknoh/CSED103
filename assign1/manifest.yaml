@@ -12,6 +12,8 @@ problems:
     tests: tests/problem2
 
 ppy:
+  mode: standalone
+  defines: [_CRT_SECURE_NO_WARNINGS]
   targets:
     ppy/problem1.ppy: [src/problem1.c]
     ppy/problem2.ppy: [src/problem2.c]
