@@ -1,42 +1,39 @@
 # Assignment 1: Parking Fee Calculator
 
-Suho Noh (20250041), Electrical Engineering. HEMOS ID: `franknoh`.
+Suho Noh | 20250041 | Electrical Engineering | HEMOS: franknoh
 
-## Environment
-
-VS Code 1.130.0, Ubuntu 24.04.5 on WSL2, and GCC 13.3.0 (C17).
-C sources are generated from `ppy/` with PPY 0.3.6 using
-`emit --standalone --unsafe --int-width 32 --format`.
+**Environment.** VS Code 1.130.0 on Ubuntu 24.04.5 (WSL2).
+Verified on Windows with the Visual Studio 2022 v143 toolset,
+MSVC 19.44.35229, C17. PPY 0.7.0 generates standalone C; the shared
+`csed103` tool builds, tests, and captures the example sessions.
 
 ## Design
 
-- **Problem 1:** Loop over the cars, calculate each fee, and accumulate the
-  total and free-car count. Parking up to 30 minutes is free. Otherwise,
-  round the excess time up to 10-minute units, charge 500 won per unit,
-  and cap the fee at 5000 won.
-- **Problem 2:** Check every minute from 0 through 1440. Keep the largest
-  time whose fee does not exceed the budget, including equality.
+**Problem 1.** A loop processes all N cars. `parking_fee` returns 0 for
+up to 30 minutes; otherwise, `(minutes - 30 + 9) / 10` rounds the excess
+up to 10-minute units. Each unit costs 500 won, capped at 5000 won.
+`total_fee` accumulates fees; `free_cars` counts zero-fee cars.
 
-## Verification
+**Problem 2.** A loop checks every minute from 0 through 1440.
+Whenever `parking_fee(minute) <= budget`, it updates `maximum_time`.
+The final value is the longest affordable time, including equality.
 
-All 44 cases pass with GCC: 9 for Problem 1 and 35 for Problem 2.
-Coverage includes free-period and billing boundaries, the fee cap,
-20 cars, non-multiple budgets, and the maximum 32-bit signed integer budget.
+## Results and verification
 
-- **Problem 1 example:** Durations 0, 30, 31, 41, and 131 produce fees
-  0, 0, 500, 1000, and 5000 won: total 6500 won, with 2 free cars.
-- **Problem 2 examples:** Budgets 0, 750, 4999, and 5000 allow
-  30, 40, 120, and 1440 minutes, respectively.
+**Problem 1:** Input N = 5 and times 0, 30, 31, 41, 131.
+Expected fees: 0, 0, 500, 1000, 5000 won; total 6500 won and 2 free cars.
+The recorded output below matches these results.
 
-Expected `.out` files include prompts but not echoed input.
-MSVC has not been tested locally.
+![Problem 1 terminal session](out/examples/problem1.png){width=3.3in}
 
-## Commands
+**Problem 2:** Input budget = 750 won. Expected maximum: 40 minutes
+(500 won); 41 minutes costs 1000 won. The recorded output matches.
 
-```sh
-csed103 build ppy assign1
-csed103 test assign1
-csed103 build all assign1
-```
+![Problem 2 terminal session](out/examples/problem2.png){width=3.3in}
 
-**Reference:** [Assignment specification](assets/Assn1.pdf), pages 1-4.
+All **44 tests passed** on MSVC (Problem 1: 9; Problem 2: 35), with no
+compiler warnings. Tests cover billing boundaries, the fee cap, 20 cars,
+non-multiple budgets, and INT_MAX. Budgets 0, 4999, and 5000 correctly
+allow 30, 120, and 1440 minutes. Captures are automatically rendered from actual
+pseudoconsole sessions, including echoed example input. `_CRT_SECURE_NO_WARNINGS` enables `scanf`
+without Visual Studio's deprecation diagnostic.
