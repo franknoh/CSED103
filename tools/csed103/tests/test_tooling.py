@@ -74,6 +74,58 @@ class ToolingTests(unittest.TestCase):
         archive = build_submission(self.root, self.assignment)
         self.assertEqual(archive.name, "assn1_123_Test_Student.zip")
 
+    def test_explicit_nested_archive_preserves_originals_and_selected_documents(self):
+        (self.assignment / "assets").mkdir()
+        original = self.assignment / "assets/original.c"
+        original.write_bytes(b"first version\r\n")
+        self.manifest.write_text(
+            "submission:\n  files:\n    final/main.c: src/main.c\n"
+            "    ai_original/main.c: assets/original.c\n    report.pdf: out/report.pdf\n"
+        )
+        archive = build_submission(self.root, self.assignment)
+        with ZipFile(archive) as zipped:
+            self.assertEqual(
+                zipped.namelist(), ["ai_original/main.c", "final/main.c", "report.pdf"]
+            )
+            self.assertEqual(zipped.read("ai_original/main.c"), b"first version\r\n")
+
+    def test_explicit_archive_rejects_unsafe_or_missing_paths(self):
+        import yaml
+
+        for name, source in (
+            ("../bad.c", "src/main.c"),
+            ("/bad.c", "src/main.c"),
+            ("C:/bad.c", "src/main.c"),
+            ("a//b.c", "src/main.c"),
+            ("main.c", "../outside.c"),
+            ("main.c", "src/missing.c"),
+        ):
+            with self.subTest(name=name, source=source):
+                self.manifest.write_text(
+                    yaml.safe_dump({"submission": {"files": {name: source}}})
+                )
+                with self.assertRaises(RuntimeError):
+                    submission_files(self.assignment)
+
+    def test_multiple_reports_use_declared_sources(self):
+        (self.assignment / "guide.md").write_text("# Guide")
+        self.manifest.write_text(
+            "reports:\n  report.pdf: README.md\n  README.pdf: guide.md\n"
+        )
+        sources = []
+
+        def render(command, **kwargs):
+            sources.append(Path(command[1]).name)
+            Path(command[command.index("-o") + 1]).write_bytes(b"rendered")
+
+        with (
+            patch("csed103.build.shutil.which", return_value="pandoc"),
+            patch("csed103.build.subprocess.run", side_effect=render),
+        ):
+            build_report(self.assignment)
+        self.assertEqual(sources, ["README.md", "guide.md"])
+        self.assertEqual((self.out / "README.pdf").read_bytes(), b"rendered")
+
     def test_unsafe_submission_archive_prefix_is_rejected(self):
         self.manifest.write_text(
             "submission:\n  archive_prefix: ../outside\n  include: [src/*.c]\n"
